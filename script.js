@@ -1,3 +1,182 @@
+async function getRecipes() {
+  $("#display").empty();
+  let query = $("#input").val(); //get input
+
+  let diet = $("#diet-filter").val();
+  let mealType = $("#meal-type-filter").val();
+
+  let APIkey = "9bd998f757544fe9bd44d4fb6d695ce4";
+  let numberOfResults = 60;
+  let response = await fetch(
+    `https://api.spoonacular.com/recipes/complexSearch?query=${query}&number=${numberOfResults}&apiKey=${APIkey}`
+  );
+
+  if (diet) {
+    response += `&diet=${diet}`;
+  }
+
+  if (mealType) {
+    response += `&type=${mealType}`;
+  }
+
+  let meal = await response.json(); // gets data out of json so that you can see its contents
+  console.log(meal);
+
+  for (let i = 0; i < meal.results.length; i++) {
+    $("#display").append(
+      `
+      <div class="col-12 col-sm-6 col-md-3 mb-4">
+        <div class="card" style="width: 100%; border-radius: 15px;">
+          <img src="${meal.results[i].image}" class="card-img-top" alt="${meal.results[i].title}" style="height: 180px; object-fit: cover;">
+          <div class="card-body">
+            <h5 class="card-title">${meal.results[i].title}</h5>
+            <button type="button" class="btn btn-primary mt-2" style="background-color: orange; border-radius: 50px"; data-bs-toggle="modal" data-bs-target="#exampleModal" onclick="getRecipeDescription(${meal.results[i].id})">
+              View Recipe
+            </button>
+          </div>
+        </div>
+      </div>
+      `
+    ); //adds each recipe info to the html card
+  }
+}
+
+async function getRecipeDescription(recipeId) {
+  let query = $("#input").val(); //get input
+  let APIkey = "9bd998f757544fe9bd44d4fb6d695ce4";
+  let response = await fetch(
+    `https://api.spoonacular.com/recipes/${recipeId}/information?apiKey=${APIkey}`
+  );
+  let meal = await response.json(); // gets data out of json so that you can see its contents
+  $("#modal-title").text(meal.title);
+
+  let instructions = meal.instructions || "No instructions available.";
+
+  // split at period followed by space and capital letter
+  let steps = instructions.split(/\. (?=[A-Z])/).filter((s) => s.trim() !== "");
+
+  let stepsHTML = "<ol style='text-align: left;'>";
+  for (let step of steps) {
+    stepsHTML += `<li>${step.trim()}</li>`; // no period at the end
+  }
+  stepsHTML += "</ol>";
+
+  $("#modal-body").html(stepsHTML);
+}
+
+// CHATBOT FROM https://www.geeksforgeeks.org/create-working-chatbot-in-html-css-javascript/
+const chatInput = document.querySelector(".chat-input textarea");
+const sendChatBtn = document.querySelector(".chat-input button");
+const chatbox = document.querySelector(".chatbox");
+const initial_prompt = "You are a helpful assistant providing food help from the spoonacular API, always be polite and concise."
+
+let userMessage = "";
+const API_KEY ="YOUR API KEY HERE";
+//OpenAI Free APIKey
+// Use env vars for safety in production
+
+const createChatLi = (message, className) => {
+  const chatLi = document.createElement("li");
+  chatLi.classList.add("chat", className);
+  chatLi.innerHTML = `<p>${message}</p>`;
+  return chatLi;
+};
+
+const generateResponse = (incomingChatLi) => {
+  const API_URL = "https://api.openai.com/v1/chat/completions";
+  const messageElement = incomingChatLi.querySelector("p");
+
+  const requestOptions = {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${API_KEY}`,
+    },
+    body: JSON.stringify({
+      model: "gpt-4.1",
+      messages: [
+         {"role": "system", "content": initial_prompt}, 
+        { role: "user", content: userMessage }
+      ],
+    }),
+  };
+
+  fetch(API_URL, requestOptions)
+    .then((res) => {
+      if (!res.ok) throw new Error(`Error ${res.status}`);
+      return res.json();
+    })
+    .then((data) => {
+      messageElement.textContent = data.choices[0].message.content;
+    })
+    .catch((error) => {
+      messageElement.classList.add("error");
+      if (error.message.includes("429")) {
+        messageElement.textContent =
+          "Too many requests. Please wait and try again.";
+      } else {
+        messageElement.textContent = `Oops! ${error.message}`;
+      }
+    })
+    .finally(() => {
+      chatbox.scrollTo(0, chatbox.scrollHeight);
+      sendChatBtn.disabled = false;
+    });
+};
+
+const handleChat = () => {
+  userMessage = chatInput.value.trim();
+  if (!userMessage) return;
+
+  // Disable button to prevent spam
+  sendChatBtn.disabled = true;
+
+  // Append user's message
+  chatbox.appendChild(createChatLi(userMessage, "chat-outgoing"));
+  chatbox.scrollTo(0, chatbox.scrollHeight);
+
+  // Clear input
+  chatInput.value = "";
+
+  // Simulate thinking...
+  setTimeout(() => {
+    const incomingChatLi = createChatLi("Thinking...", "chat-incoming");
+    chatbox.appendChild(incomingChatLi);
+    chatbox.scrollTo(0, chatbox.scrollHeight);
+    generateResponse(incomingChatLi);
+  }, 500);
+};
+
+// Click handler
+sendChatBtn.addEventListener("click", handleChat);
+
+// Optional: handle Enter key as Send
+chatInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !e.shiftKey) {
+    e.preventDefault();
+    handleChat();
+  }
+});
+
+function cancel() {
+  const chatbot = document.querySelector(".chatBot");
+  if (chatbot.style.display !== "none") {
+    chatbot.style.display = "none";
+    const lastMsg = document.createElement("p");
+    lastMsg.textContent = "Thanks for using our Chatbot!";
+    lastMsg.classList.add("lastMessage");
+    document.body.appendChild(lastMsg);
+  }
+}
+
+
+
+
+
+
+
+
+
 let recipesData;
 
 fetch("recipes.json")
